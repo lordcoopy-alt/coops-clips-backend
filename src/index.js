@@ -136,3 +136,4 @@ app.delete("/delete", async (req, res) => {
     res.status(500).json({ error: "delete failed" });
   }
 });
+app.listen(PORT, () => console.log(`Backend listening on port ${PORT}`));

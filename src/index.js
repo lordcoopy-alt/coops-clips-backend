@@ -3,7 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import morgan from "morgan";
 import helmet from "helmet";
-import { S3Client, PutObjectCommand, ListObjectsV2Command } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, ListObjectsV2Command, DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 dotenv.config();
@@ -22,7 +22,7 @@ app.use(cors({
     if (!origin || allowed.has(origin)) return cb(null, true);
     return cb(new Error("Not allowed by CORS"));
   },
-  methods: ["GET","POST","PUT","OPTIONS"],
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
   allowedHeaders: ["Content-Type","Authorization"]
 }));
 
@@ -125,4 +125,14 @@ app.get("/list", async (req, res) => {
   }
 });
 
-app.listen(PORT, () => console.log(`Backend listening on port ${PORT}`));
+app.delete("/delete", async (req, res) => {
+  try {
+    const key = req.query.key;
+    if (!key) return res.status(400).json({ error: "key required" });
+    await s3.send(new DeleteObjectCommand({ Bucket: process.env.B2_BUCKET, Key: key }));
+    res.json({ ok: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "delete failed" });
+  }
+});

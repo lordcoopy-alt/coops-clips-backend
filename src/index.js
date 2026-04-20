@@ -124,4 +124,24 @@ app.delete("/delete", async (req, res) => {
     res.status(500).json({ error: "delete failed" });
   }
 });
+app.get("/setup-cors", async (req, res) => {
+  try {
+    const { PutBucketCorsCommand } = await import("@aws-sdk/client-s3");
+    await s3.send(new PutBucketCorsCommand({
+      Bucket: process.env.B2_BUCKET,
+      CORSConfiguration: {
+        CORSRules: [{
+          AllowedHeaders: ["*"],
+          AllowedMethods: ["GET", "PUT", "POST", "DELETE", "HEAD"],
+          AllowedOrigins: ["*"],
+          ExposeHeaders: [],
+          MaxAgeSeconds: 3000
+        }]
+      }
+    }));
+    res.json({ ok: true, message: "CORS configured!" });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 app.listen(PORT, () => console.log(`Backend listening on port ${PORT}`));

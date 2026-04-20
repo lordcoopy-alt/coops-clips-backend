@@ -30,36 +30,24 @@ app.use(helmet());
 app.use(morgan("dev"));
 
 /** Raw ONLY for proxy route; JSON for the rest */
-app.post("/upload-proxy", express.raw({ type: "*/*", limit: "5gb" }), async (req, res) => {
+app.post("/upload-proxy", async (req, res) => {
   try {
     const filename = (req.query.filename || `clip-${Date.now()}.mp4`).toString();
     const contentType = req.headers["content-type"] || "application/octet-stream";
-
-    // Sign a PUT to B2
     const putCmd = new PutObjectCommand({
       Bucket: process.env.B2_BUCKET,
       Key: filename,
       ContentType: contentType
     });
-    const s3ClientForSign = new S3Client({
-      region: process.env.B2_REGION,
-      endpoint: process.env.B2_ENDPOINT,
-      forcePathStyle: true,
-      credentials: {
-        accessKeyId: process.env.B2_KEY_ID,
-        secretAccessKey: process.env.B2_APP_KEY || process.env.B2_KEY_SECRET
-      }
-    });
-    const uploadUrl = await getSignedUrl(s3ClientForSign, putCmd, { expiresIn: 3600 });
-
-    // Stream file to B2 (no browser→B2 CORS)
+    const uploadUrl = await getSignedUrl(s3, putCmd, { expiresIn: 3600 });
     const put = await fetch(uploadUrl, {
       method: "PUT",
       headers: { "Content-Type": contentType },
-      body: req.body
+      body: req,
+      duplex: "half"
     });
     if (!put.ok) {
-      const txt = await put.text();
+      const txt = await put.text().catch(() => '');
       return res.status(502).json({ error: "b2 put failed", status: put.status, body: txt });
     }
     return res.json({ ok: true, key: filename });
